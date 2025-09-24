@@ -7,108 +7,80 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
 app.use(express.static(path.join(__dirname, "public")));
 
-let token = null;        
-let previousResult = null;
-let finalResult = null;
+const randomApiKey = process.env.RANDOM_API_KEY;
 
-// --- Random.org API ---
-async function getRandomFromRandomOrg() {
+// Get numbers from Random.org + QRNG + CSRNG
+async function getNumbers() {
   try {
-    let res = await fetch(
-      "https://www.random.org/integers/?num=1&min=0&max=9&col=1&base=10&format=plain&rnd=new"
-    );
-    return parseInt(await res.text(), 10);
-  } catch {
-    return null;
-  }
-}
+    // 🔹 Random.org (needs API key)
+    let randomNum = null;
+    if (randomApiKey) {
+      const randomRes = await fetch("https://api.random.org/json-rpc/4/invoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "generateIntegers",
+          params: {
+            apiKey: randomApiKey,
+            n: 1,
+            min: 0,
+            max: 9,
+            replacement: true
+          },
+          id: 1
+        })
+      });
+      const randomData = await randomRes.json();
+      randomNum = randomData?.result?.random?.data[0] ?? null;
+    }
 
-// --- CSRNG API ---
-async function getRandomFromCSRNG() {
-  try {
-    let res = await fetch("https://csrng.net/csrng/csrng.php?min=0&max=9");
-    let data = await res.json();
-    return data[0].random;
-  } catch {
-    return null;
-  }
-}
+    // 🔹 QRNG
+    const qrngRes = await fetch("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=uint8");
+    const qrngData = await qrngRes.json();
+    const qrngNum = qrngData?.data ? qrngData.data[0] % 10 : null;
 
-// --- QRNG API ---
-async function getRandomFromQRNG() {
-  try {
-    let res = await fetch("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=uint8");
-    let data = await res.json();
-    return data.data[0] % 10;
-  } catch {
-    return null;
-  }
-}
+    // 🔹 CSRNG
+    const csrngRes = await fetch("https://csrng.net/csrng/csrng.php?min=0&max=9");
+    const csrngData = await csrngRes.json();
+    const csrngNum = csrngData?.[0]?.random || null;
 
-// --- Frequency calculation ---
-function getFrequencyNumber(numbers) {
-  let freq = {};
-  numbers.forEach((n) => {
-    if (n !== null) {
+    // Combine
+    const nums = [randomNum, qrngNum, csrngNum].filter(n => n !== null);
+
+    // Frequency
+    const freq = {};
+    nums.forEach(n => {
       freq[n] = (freq[n] || 0) + 1;
-    }
-  });
+    });
 
-  let best = null;
-  let max = -1;
-  for (let n in freq) {
-    if (freq[n] > max) {
-      max = freq[n];
-      best = parseInt(n, 10);
+    // Highest frequency
+    let finalNum = nums[0];
+    let maxFreq = 0;
+    for (const [num, count] of Object.entries(freq)) {
+      if (count > maxFreq) {
+        maxFreq = count;
+        finalNum = num;
+      }
     }
+
+    return { nums, finalNum };
+  } catch (err) {
+    console.error("Error fetching numbers:", err);
+    return { nums: [], finalNum: null };
   }
-  return best !== null ? best : 0;
 }
 
-// --- Fetch numbers ---
-async function fetchNumbers() {
-  let r1 = await getRandomFromRandomOrg();
-  let r2 = await getRandomFromCSRNG();
-  let r3 = await getRandomFromQRNG();
-
-  let numbers = [r1, r2, r3];
-  token = getFrequencyNumber(numbers);
-
-  console.log("Token (frequency high):", token);
-}
-
-// --- Schedule round timing ---
-function scheduleRounds() {
-  setInterval(() => {
-    let now = new Date();
-    let sec = now.getSeconds();
-
-    if (sec === 25) {
-      fetchNumbers();
-    }
-    if (sec === 30 && token !== null) {
-      previousResult = token;
-      console.log("Previous set:", previousResult);
-    }
-    if (sec === 0 && token !== null) {
-      finalResult = token;
-      console.log("Final set:", finalResult);
-    }
-  }, 1000);
-}
-
-scheduleRounds();
-
-// --- API endpoint ---
-app.get("/result", (req, res) => {
-  res.json({
-    token: token,
-    previous: previousResult,
-    final: finalResult,
-  });
+// API endpoint
+app.get("/api/number", async (req, res) => {
+  const result = await getNumbers();
+  res.json(result);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on port " + PORT));
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
