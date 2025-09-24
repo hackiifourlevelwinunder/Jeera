@@ -2,27 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>RNG Frequency App</title>
+  <title>RNG Frequency</title>
 </head>
 <body>
-  <h2>Live RNG Frequency Result</h2>
-  <p>Token: <span id="token">-</span></p>
-  <p>Previous: <span id="previous">-</span></p>
-  <p>Final: <span id="final">-</span></p>
+  <h1>Real RNG Frequency</h1>
+  <p>Previous: <span id="previous"></span></p>
+  <p>Final: <span id="final"></span></p>
+  <p>Next round in: <span id="timer"></span> sec</p>
 
   <script>
-    async function fetchResult() {
-      try {
-        let res = await fetch("/result");
-        let data = await res.json();
-        document.getElementById("token").innerText = data.token ?? "-";
-        document.getElementById("previous").innerText = data.previous ?? "-";
-        document.getElementById("final").innerText = data.final ?? "-";
-      } catch (e) {
-        console.error(e);
-      }
+    let roundStart = Date.now();
+
+    async function fetchNumber() {
+      const res = await fetch("/api/number");
+      return res.json();
     }
-    setInterval(fetchResult, 1000);
+
+    async function runRound() {
+      const now = new Date();
+      const sec = now.getSeconds();
+
+      if (sec === 25) {
+        const data = await fetchNumber();
+        document.getElementById("previous").innerText = data.finalNum;
+      }
+
+      if (sec === 0) {
+        const data = await fetchNumber();
+        document.getElementById("final").innerText = data.finalNum;
+      }
+
+      // Countdown
+      const next = 60 - sec;
+      document.getElementById("timer").innerText = next;
+    }
+
+    setInterval(runRound, 1000);
   </script>
 </body>
 </html>
