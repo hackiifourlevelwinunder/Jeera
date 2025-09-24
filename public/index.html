@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Real RNG Mix Server - Public 1</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+    .number { font-size: 48px; margin: 20px; }
+    .timer { font-size: 24px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Frontend 1 (Public)</h1>
+  <div class="timer" id="timer"></div>
+  <div class="number">Preview: <span id="preview">-</span></div>
+  <div class="number">Final: <span id="final">-</span></div>
+
+  <script>
+    let previewSet = false;
+    function updateTimer() {
+      const now = new Date();
+      const sec = now.getSeconds();
+      document.getElementById("timer").textContent = "Time: " + now.toLocaleTimeString();
+      if (sec === 30 && !previewSet) {
+        fetch("/api/number").then(r => r.json()).then(data => {
+          document.getElementById("preview").textContent = data.final;
+        });
+        previewSet = true;
+      }
+      if (sec === 0) {
+        fetch("/api/number").then(r => r.json()).then(data => {
+          document.getElementById("final").textContent = data.final;
+          document.getElementById("preview").textContent = "-";
+        });
+        previewSet = false;
+      }
+    }
+    setInterval(updateTimer, 1000);
+  </script>
+</body>
+</html>
