@@ -1,40 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Real RNG Mix Server - Public 1</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-    .number { font-size: 48px; margin: 20px; }
-    .timer { font-size: 24px; margin: 10px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>RNG Frequency App</title>
 </head>
 <body>
-  <h1>Frontend 1 (Public)</h1>
-  <div class="timer" id="timer"></div>
-  <div class="number">Preview: <span id="preview">-</span></div>
-  <div class="number">Final: <span id="final">-</span></div>
+  <h2>Live RNG Frequency Result</h2>
+  <p>Token: <span id="token">-</span></p>
+  <p>Previous: <span id="previous">-</span></p>
+  <p>Final: <span id="final">-</span></p>
 
   <script>
-    let previewSet = false;
-    function updateTimer() {
-      const now = new Date();
-      const sec = now.getSeconds();
-      document.getElementById("timer").textContent = "Time: " + now.toLocaleTimeString();
-      if (sec === 30 && !previewSet) {
-        fetch("/api/number").then(r => r.json()).then(data => {
-          document.getElementById("preview").textContent = data.final;
-        });
-        previewSet = true;
-      }
-      if (sec === 0) {
-        fetch("/api/number").then(r => r.json()).then(data => {
-          document.getElementById("final").textContent = data.final;
-          document.getElementById("preview").textContent = "-";
-        });
-        previewSet = false;
+    async function fetchResult() {
+      try {
+        let res = await fetch("/result");
+        let data = await res.json();
+        document.getElementById("token").innerText = data.token ?? "-";
+        document.getElementById("previous").innerText = data.previous ?? "-";
+        document.getElementById("final").innerText = data.final ?? "-";
+      } catch (e) {
+        console.error(e);
       }
     }
-    setInterval(updateTimer, 1000);
+    setInterval(fetchResult, 1000);
   </script>
 </body>
 </html>
