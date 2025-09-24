@@ -1,6 +1,10 @@
-const express = require("express");
-const fetch = require("node-fetch");
-const path = require("path");
+import express from "express";
+import fetch from "node-fetch";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
@@ -9,6 +13,7 @@ let pendingResult = null;
 let previousResult = null;
 let finalResult = null;
 
+// --- Random.org API ---
 async function getRandomFromRandomOrg() {
   try {
     let res = await fetch(
@@ -20,6 +25,7 @@ async function getRandomFromRandomOrg() {
   }
 }
 
+// --- CSRNG API ---
 async function getRandomFromCSRNG() {
   try {
     let res = await fetch("https://csrng.net/csrng/csrng.php?min=0&max=9");
@@ -30,6 +36,7 @@ async function getRandomFromCSRNG() {
   }
 }
 
+// --- QRNG API ---
 async function getRandomFromQRNG() {
   try {
     let res = await fetch("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=uint8");
@@ -40,6 +47,7 @@ async function getRandomFromQRNG() {
   }
 }
 
+// --- Frequency calculation ---
 function getFrequencyNumber(numbers) {
   let freq = {};
   numbers.forEach((n) => {
@@ -48,7 +56,8 @@ function getFrequencyNumber(numbers) {
     }
   });
 
-  let best = null, max = -1;
+  let best = null;
+  let max = -1;
   for (let n in freq) {
     if (freq[n] > max) {
       max = freq[n];
@@ -58,41 +67,41 @@ function getFrequencyNumber(numbers) {
   return best !== null ? best : 0;
 }
 
+// --- Fetch numbers ---
 async function fetchNumbers() {
   let r1 = await getRandomFromRandomOrg();
   let r2 = await getRandomFromCSRNG();
   let r3 = await getRandomFromQRNG();
+
   let numbers = [r1, r2, r3];
   pendingResult = getFrequencyNumber(numbers);
+
   console.log("Fetched pendingResult:", pendingResult);
 }
 
+// --- Schedule round timing ---
 function scheduleRounds() {
   setInterval(() => {
     let now = new Date();
     let sec = now.getSeconds();
 
-    // 25 sec -> fetch API
     if (sec === 25) {
       fetchNumbers();
     }
-
-    // 30 sec -> previous = pendingResult
     if (sec === 30 && pendingResult !== null) {
       previousResult = pendingResult;
-      console.log("Set previous:", previousResult);
+      console.log("Previous set:", previousResult);
     }
-
-    // 00 sec -> final = pendingResult
     if (sec === 0 && pendingResult !== null) {
       finalResult = pendingResult;
-      console.log("Set final:", finalResult);
+      console.log("Final set:", finalResult);
     }
   }, 1000);
 }
 
 scheduleRounds();
 
+// --- API endpoint ---
 app.get("/result", (req, res) => {
   res.json({
     previous: previousResult,
