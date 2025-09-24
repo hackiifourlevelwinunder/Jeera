@@ -1,7 +1,7 @@
 {
-  "name": "rng-server",
+  "name": "rng-frequency-app",
   "version": "1.0.0",
-  "description": "Real RNG frequency server",
+  "description": "Fetch numbers from multiple RNG sources and pick high frequency one",
   "main": "server.js",
   "type": "module",
   "scripts": {
