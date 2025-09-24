@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
-let pendingResult = null;
+let token = null;        
 let previousResult = null;
 let finalResult = null;
 
@@ -74,9 +74,9 @@ async function fetchNumbers() {
   let r3 = await getRandomFromQRNG();
 
   let numbers = [r1, r2, r3];
-  pendingResult = getFrequencyNumber(numbers);
+  token = getFrequencyNumber(numbers);
 
-  console.log("Fetched pendingResult:", pendingResult);
+  console.log("Token (frequency high):", token);
 }
 
 // --- Schedule round timing ---
@@ -88,12 +88,12 @@ function scheduleRounds() {
     if (sec === 25) {
       fetchNumbers();
     }
-    if (sec === 30 && pendingResult !== null) {
-      previousResult = pendingResult;
+    if (sec === 30 && token !== null) {
+      previousResult = token;
       console.log("Previous set:", previousResult);
     }
-    if (sec === 0 && pendingResult !== null) {
-      finalResult = pendingResult;
+    if (sec === 0 && token !== null) {
+      finalResult = token;
       console.log("Final set:", finalResult);
     }
   }, 1000);
@@ -104,6 +104,7 @@ scheduleRounds();
 // --- API endpoint ---
 app.get("/result", (req, res) => {
   res.json({
+    token: token,
     previous: previousResult,
     final: finalResult,
   });
